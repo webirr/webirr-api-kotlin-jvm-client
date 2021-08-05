@@ -7,6 +7,19 @@ plugins {
 group 'com.webirr'
 version '1.0.3'
 
+publishing {
+    publications {
+        library(MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url = uri("${buildDir}/publishing-repository")
+        }
+    }
+}
+
 repositories {
     mavenCentral()
 }
