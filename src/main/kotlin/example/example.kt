@@ -2,11 +2,11 @@ package webirr.example
 
 import webirr.*;
 
-//val apiKey = "YOUR_API_KEY"
-//val merchantId = "YOUR_MERCHANT_ID"
+val apiKey = "YOUR_API_KEY"
+val merchantId = "YOUR_MERCHANT_ID"
 
-val apiKey =  System.getenv("wb_apikey_1") ?: ""
-val merchantId =  System.getenv("wb_merchid_1") ?: ""
+//val apiKey =  System.getenv("wb_apikey_1") ?: ""
+//val merchantId =  System.getenv("wb_merchid_1") ?: ""
 
 fun main() {
 
@@ -114,6 +114,7 @@ fun deleteBillAsync(){
     var paymentCode = "PAYMENT_CODE_YOU_SAVED_AFTER_CREATING_A_NEW_BILL" // suchas as '141 263 782';
 
     println("Deleting Bill...")
+
     api.deleteBillAsync(paymentCode) { it ->
 
         if (it.error == null) {
