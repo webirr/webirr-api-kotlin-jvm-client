@@ -26,7 +26,7 @@ class WeBirrClient(apiKey:  String, isTestEnv: Boolean) {
      * Check if(ApiResponse.error == null) to see if there are errors.
      * ApiResponse.res will have the value of the returned PaymentCode on success.
      */
-    fun createBill(bill: Bill, callBack: (ApiResponse<String>) -> Unit ) {
+    fun createBillAsync(bill: Bill, callBack: (ApiResponse<String>) -> Unit ) {
 
             var call = _api.createBill(_apiKey, bill)
 
@@ -53,7 +53,7 @@ class WeBirrClient(apiKey:  String, isTestEnv: Boolean) {
      * Check if(ApiResponse.error == null) to see if there are errors.
      * ApiResponse.res will have the value of "OK" on success.
      */
-    fun updateBill(bill: Bill, callBack: (ApiResponse<String>) -> Unit ) {
+    fun updateBillAsync(bill: Bill, callBack: (ApiResponse<String>) -> Unit ) {
 
         var call = _api.updateBill(_apiKey, bill)
 

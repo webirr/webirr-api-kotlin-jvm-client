@@ -15,7 +15,7 @@ class WeBirrClientTests {
 
         var errorCode: String? = null
 
-        api.createBill(bill) {
+        api.createBillAsync(bill) {
             errorCode = it.errorCode
             lock.countDown()
         }
@@ -33,7 +33,7 @@ class WeBirrClientTests {
 
         var errorCode: String? = null
 
-        api.createBill(bill) {
+        api.createBillAsync(bill) {
             errorCode = it.errorCode
             lock.countDown()
         }
@@ -51,7 +51,7 @@ class WeBirrClientTests {
 
         var errorCode: String? = null
 
-        api.updateBill(bill) {
+        api.updateBillAsync(bill) {
             errorCode = it.errorCode
             lock.countDown()
         }
@@ -62,14 +62,14 @@ class WeBirrClientTests {
     }
 
     private val sampleBill : Bill
-        get() = Bill (
-            "270.90",
+        get() = Bill(
             "cc01",
             "Elias Haileselassie",
+            "kt/2021/130",
             "2021-07-22 22:14",
             "hotel booking",
-            "kt/2021/130",
-            "x"
+            "270.90",
+            "x",
         )
 
     private val lock
