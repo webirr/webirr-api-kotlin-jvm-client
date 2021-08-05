@@ -61,6 +61,38 @@ class WeBirrClientTests {
 
     }
 
+    @Test
+    fun deleteBill_should_get_error_from_WebService_on_invalid_api_key(){
+
+        val api = WeBirrClient("x", true);
+
+        var errorCode: String? = null
+
+        api.deleteBillAsync("xxxx") {
+            errorCode = it.error // deletebill not sending errorCode
+            lock.countDown()
+        }
+
+        lock.await(2000, TimeUnit.MILLISECONDS);
+        assertNotNull(errorCode)
+    }
+
+    @Test
+    fun getPaymentStatus_should_get_error_from_WebService_on_invalid_api_key(){
+
+        val api = WeBirrClient("x", true);
+
+        var errorCode: String? = null
+
+        api.getPaymentStatusAsync("xxxx") {
+            errorCode = it.errorCode
+            lock.countDown()
+        }
+
+        lock.await(2000, TimeUnit.MILLISECONDS);
+        assertNotNull(errorCode)
+    }
+
     private val sampleBill : Bill
         get() = Bill(
             "cc01",

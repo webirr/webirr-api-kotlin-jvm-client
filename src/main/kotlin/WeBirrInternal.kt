@@ -19,8 +19,12 @@ internal interface WeBirrApi {
     @Headers("Content-Type: application/json")
     fun updateBill(@Query("api_key") apiKey: String, @Body bill: Bill): Call<ApiResponse<String>>
 
-    @GET("getPaymentStatus")
-    fun getPaymentStatus(@Query("api_key") apiKey: String, @Query("bill_reference") billRef: String): Call<ApiResponse<Payment>>
+    @PUT("einvoice/api/deletebill")
+    @Headers("Content-Type: application/json")
+    fun deleteBill(@Query("api_key") apiKey: String, @Query("wbc_code") paymentCode: String,  @Body dummy: String = ""): Call<ApiResponse<String>>
+
+    @GET("einvoice/api/getpaymentstatus")
+    fun getPaymentStatus(@Query("api_key") apiKey: String, @Query("wbc_code") paymentCode: String): Call<ApiResponse<Payment>>
 }
 
 internal object WeBirrApiAdapter {

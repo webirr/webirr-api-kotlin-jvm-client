@@ -12,8 +12,8 @@ import retrofit2.Response
  */
 class WeBirrClient(apiKey:  String, isTestEnv: Boolean) {
 
-    private lateinit var _apiKey: String
-    private lateinit var _api: WeBirrApi
+    private var _apiKey: String
+    private var _api: WeBirrApi
 
     init {
        _apiKey = apiKey;
@@ -21,56 +21,71 @@ class WeBirrClient(apiKey:  String, isTestEnv: Boolean) {
     }
     /**
      * Create a new bill at WeBirr Servers.
-     * @param {object} bill represents an invoice or bill for a customer. see sample for structure of the Bill
-     * @returns {object} see sample for structure of the returned ApiResponse Object
+     * @param {Bill} bill represents an invoice or bill for a customer
+     * @returns {Unit} but uses callBack that will be called when the async task is done.
      * Check if(ApiResponse.error == null) to see if there are errors.
      * ApiResponse.res will have the value of the returned PaymentCode on success.
      */
     fun createBillAsync(bill: Bill, callBack: (ApiResponse<String>) -> Unit ) {
 
-            var call = _api.createBill(_apiKey, bill)
+        var call = _api.createBill(_apiKey, bill)
+        call.enqueue(ApiResponseCallBack(callBack))
 
-            call.enqueue( object : Callback<ApiResponse<String>> {
-                override fun onResponse(call: Call<ApiResponse<String>>, response: Response<ApiResponse<String>>) {
-                     if(response.isSuccessful){
-                          callBack(response.body()!!);
-
-                     } else {
-                         callBack( ApiResponse<String>( "http error ${response.raw().code()} ${response.raw().message()}" ))
-                     }
-                }
-
-                override fun onFailure(call: Call<ApiResponse<String>>, t: Throwable) {
-                    callBack( ApiResponse<String>( "exception ${t.message}" ))
-                }
-            });
     }
     /**
      * Update an existing bill at WeBirr Servers, if the bill is not paid yet.
      * The billReference has to be the same as the original bill created.
-     * @param {object} bill represents an invoice or bill for a customer. see sample for structure of the Bill
-     * @returns {object} see sample for structure of the returned ApiResponse Object
+     * @param {Bill} bill represents an invoice or bill for a customer
+     * @returns {Unit} but uses callBack that will be called when the async task is done.
      * Check if(ApiResponse.error == null) to see if there are errors.
      * ApiResponse.res will have the value of "OK" on success.
      */
     fun updateBillAsync(bill: Bill, callBack: (ApiResponse<String>) -> Unit ) {
 
         var call = _api.updateBill(_apiKey, bill)
+        call.enqueue(ApiResponseCallBack(callBack))
 
-        call.enqueue( object : Callback<ApiResponse<String>> {
-            override fun onResponse(call: Call<ApiResponse<String>>, response: Response<ApiResponse<String>>) {
-                if(response.isSuccessful){
-                    callBack(response.body()!!);
+    }
+    /**
+     * Delete an existing bill at WeBirr Servers, if the bill is not paid yet.
+     * @param {string} paymentCode is the number that WeBirr Payment Gateway returns on createBillAsync.
+     * @returns {Unit} but uses callBack that will be called when the async task is done.
+     * Check if(ApiResponse.error == null) to see if there are errors.
+     * ApiResponse.res will have the value of "OK" on success.
+     */
+    fun deleteBillAsync(paymentCode: String, callBack: (ApiResponse<String>) -> Unit ) {
 
-                } else {
-                    callBack( ApiResponse<String>( "http error ${response.raw().code()} ${response.raw().message()}" ))
-                }
-            }
+        var call = _api.deleteBill(_apiKey, paymentCode)
+        call.enqueue(ApiResponseCallBack(callBack))
 
-            override fun onFailure(call: Call<ApiResponse<String>>, t: Throwable) {
-                callBack( ApiResponse<String>( "exception ${t.message}" ))
-            }
-        });
+    }
+    /**
+     * Get Payment Status of a bill from WeBirr Servers
+     * @param {string} paymentCode is the number that WeBirr Payment Gateway returns on createBill.
+     * @returns {Unit} but uses callBack that will be called when the async task is done.
+     * Check if(returnedResult.error == null) to see if there are errors.
+     * ApiResponse.res will have [Payment] object on success (will be null otherwise!)
+     * ApiResponse.res?.isPaid ?? false -> will return true if the bill is paid (payment completed)
+     * ApiResponse.res?.data ?? null -> will have [PaymentDetail] object
+     */
+    fun getPaymentStatusAsync(paymentCode: String, callBack: (ApiResponse<Payment>) -> Unit ) {
+
+        var call = _api.getPaymentStatus(_apiKey, paymentCode)
+        call.enqueue(ApiResponseCallBack(callBack))
+
+    }
+}
+
+class ApiResponseCallBack<T>( val callBack: (ApiResponse<T>) -> Unit  ) : Callback<ApiResponse<T>> {
+
+    override fun onResponse(call: Call<ApiResponse<T>>, response: Response<ApiResponse<T>>) {
+        if(response.isSuccessful)
+            callBack(response.body()!!)
+        else
+            callBack( ApiResponse<T>( "http error ${response.raw().code()} ${response.raw().message()}" ))
+    }
+    override fun onFailure(call: Call<ApiResponse<T>>, t: Throwable) {
+        callBack( ApiResponse<T>( "exception ${t.message}" ))
     }
 
 }
