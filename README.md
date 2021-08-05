@@ -21,7 +21,7 @@ allprojects {
 Step 2. Add the dependency
 ```groovy
 dependencies {
-    implementation 'com.webirr:webirr:Tag'
+    implementation 'com.github.webirr:webirr-api-kotlin-jvm-client:Tag'
 }
 ```
 
@@ -42,8 +42,8 @@ Step 2. Add the dependency
 
 ```xml
 <dependency>
-    <groupId>com.webirr</groupId>
-    <artifactId>webirr</artifactId>
+    <groupId>com.github.webirr</groupId>
+    <artifactId>webirr-api-kotlin-jvm-client</artifactId>
     <version>Tag</version>
 </dependency>
 ```
