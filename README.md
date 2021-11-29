@@ -79,7 +79,10 @@ fun main() {
  * Creating a new Bill / Updating an existing Bill on WeBirr Servers
  */
 fun createAndUpdateBillAsync(){
-
+    /**
+    * @property apiKey the api key for the merchant.
+    * @property isTestEnv true for test and false for production.
+    */
     val api = WeBirrClient(apiKey, true)
 
     var bill = Bill(
