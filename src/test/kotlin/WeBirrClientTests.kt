@@ -177,6 +177,13 @@ class WeBirrClientTests {
         )
         assertEquals(2.0, stat.nBills)
         assertEquals(548.0, stat.amountBills)
+
+        val bank = gson.fromJson(
+            """{"bankID":"cbe_mobile","name":"CBE Mobile Banking"}""",
+            SupportedBank::class.java
+        )
+        assertEquals("cbe_mobile", bank.bankID)
+        assertEquals("CBE Mobile Banking", bank.name)
     }
 
     @Test
@@ -259,6 +266,16 @@ class WeBirrClientTests {
             }
             assertNoApiError(stat, "getStat")
             assertNotNull(stat.res)
+
+            val supportedBanks = waitFor<List<SupportedBank>> { done ->
+                api.getSupportedBanksAsync(done)
+            }
+            assertNoApiError(supportedBanks, "getSupportedBanks")
+            assertFalse(supportedBanks.res.isNullOrEmpty())
+            supportedBanks.res?.forEach {
+                assertFalse(it.bankID.isEmpty())
+                assertFalse(it.name.isEmpty())
+            }
 
             val deleteResponse = waitFor<String> { done -> api.deleteBillAsync(paymentCode, done) }
             assertNoApiError(deleteResponse, "deleteBill")
@@ -370,6 +387,9 @@ class WeBirrClientTests {
                 mapOf("date_from" to "2025-01-01", "date_to" to "2030-01-31")
             ) { api ->
                 waitFor<Stat> { done -> api.getStatAsync("2025-01-01", "2030-01-31", done) }
+            },
+            EndpointCall("getSupportedBanks", "GET", "/einvoice/api/banks") { api ->
+                waitFor<List<SupportedBank>> { done -> api.getSupportedBanksAsync(done) }
             }
         )
 

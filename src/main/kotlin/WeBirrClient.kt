@@ -111,6 +111,11 @@ class WeBirrClient {
         call.enqueue(ApiResponseCallBack(callBack))
     }
 
+    fun getSupportedBanksAsync(callBack: (ApiResponse<List<SupportedBank>>) -> Unit) {
+        val call = api.getSupportedBanks(apiKey, queryMerchantId())
+        call.enqueue(ApiResponseCallBack(callBack))
+    }
+
     private fun prepareBill(bill: Bill): Bill {
         if (merchantId.isNotEmpty()) {
             bill.merchantID = merchantId

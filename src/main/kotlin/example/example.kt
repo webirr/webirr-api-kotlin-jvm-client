@@ -21,6 +21,8 @@ fun main() {
     BulkPaymentPollingConsumer(api).fetchAndProcessPayments()
     Thread.sleep(2000)
     getStatAsync()
+    Thread.sleep(2000)
+    getSupportedBanksAsync()
 }
 
 /**
@@ -269,6 +271,25 @@ fun getStatAsync() {
             println("Amount Unpaid: ${it.res?.amountUnpaid}")
         } else {
             // fail
+            println("error: ${it.error}")
+            println("errorCode: ${it.errorCode}")
+        }
+    }
+}
+
+/**
+ * Getting banks enabled for this merchant checkout.
+ */
+fun getSupportedBanksAsync() {
+    println("Getting Supported Banks...")
+
+    api.getSupportedBanksAsync {
+        if (it.error == null) {
+            for (bank in it.res ?: emptyList()) {
+                println("${bank.bankID} - ${bank.name}")
+            }
+            println("Use only these merchant-specific banks when showing checkout payment instructions.")
+        } else {
             println("error: ${it.error}")
             println("errorCode: ${it.errorCode}")
         }

@@ -218,6 +218,36 @@ fun getBillAndListBillsAsync() {
 }
 ```
 
+### Getting Supported Banks for Checkout
+
+```kotlin
+package webirr.example
+
+import webirr.WeBirrClient
+
+val apiKey = System.getenv("WEBIRR_TEST_ENV_API_KEY") ?: "YOUR_API_KEY"
+val merchantId = System.getenv("WEBIRR_TEST_ENV_MERCHANT_ID") ?: "YOUR_MERCHANT_ID"
+
+fun getSupportedBanksAsync() {
+    val api = WeBirrClient(merchantId, apiKey, true)
+
+    println("Getting Supported Banks...")
+    api.getSupportedBanksAsync {
+        if (it.error == null) {
+            for (bank in it.res ?: emptyList()) {
+                println("${bank.bankID} - ${bank.name}")
+            }
+            println("Use only these merchant-specific banks when showing checkout payment instructions.")
+        } else {
+            println("error: ${it.error}")
+            println("errorCode: ${it.errorCode}")
+        }
+    }
+}
+```
+
+Checkout pages should render bank-specific instructions only from `getSupportedBanksAsync()`. Do not show a broad static bank list unless those banks are returned for the configured merchant.
+
 ### Getting Payment status of an existing Bill from WeBirr Servers
 
 ```kotlin
@@ -437,6 +467,7 @@ The `src/main/kotlin/example/example.kt` file includes workflows equivalent to t
 | `getStatAsync` | Merchant stats by date range. |
 | `processWebhookPayment` | Webhook callback processing helper. |
 | `getBillAndListBillsAsync` | Get bill by reference, get bill by payment code, list bills. |
+| `getSupportedBanksAsync` | Get banks enabled for the configured merchant checkout. |
 
 ## Tests
 

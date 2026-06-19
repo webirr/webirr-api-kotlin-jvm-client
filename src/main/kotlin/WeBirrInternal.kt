@@ -84,6 +84,12 @@ internal interface WeBirrApi {
         @Query("date_from") dateFrom: String,
         @Query("date_to") dateTo: String
     ): Call<ApiResponse<Stat>>
+
+    @GET("einvoice/api/banks")
+    fun getSupportedBanks(
+        @Query("api_key") apiKey: String,
+        @Query("merchant_id") merchantId: String?
+    ): Call<ApiResponse<List<SupportedBank>>>
 }
 
 internal object WeBirrApiAdapter {
