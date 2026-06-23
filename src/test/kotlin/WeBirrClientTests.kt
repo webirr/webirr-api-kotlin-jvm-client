@@ -1,7 +1,12 @@
 package webirr
 
 import com.google.gson.Gson
+import okhttp3.MediaType
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody
+import okhttp3.HttpUrl
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
@@ -81,6 +86,63 @@ class WeBirrClientTests {
         assertEquals("OK", response.res)
         assertEquals("injected", request.getHeader("X-Test-Client"))
         assertEquals("merchant-from-client", request.requestUrl!!.queryParameter("merchant_id"))
+    }
+
+    @Test
+    fun testEnvDefaultsToApiWebirrDev() {
+        System.clearProperty("GATEWAY_URL")
+        val captured = AtomicReference<HttpUrl>()
+        val api = WeBirrClient(
+            "merchant-from-client",
+            "api-key",
+            true,
+            captureOnlyClient(captured)
+        )
+
+        val response = waitFor<String> { done -> api.deleteBillAsync("123 456 789", done) }
+
+        assertEquals("OK", response.res)
+        assertEquals("https", captured.get().scheme())
+        assertEquals("api.webirr.dev", captured.get().host())
+        assertEquals(443, captured.get().port())
+    }
+
+    @Test
+    fun gatewayUrlOverridesTestEnvOnly() {
+        System.setProperty("GATEWAY_URL", "http://127.0.0.1:9999/")
+        try {
+            val testCaptured = AtomicReference<HttpUrl>()
+            val testApi = WeBirrClient(
+                "merchant-from-client",
+                "api-key",
+                true,
+                captureOnlyClient(testCaptured)
+            )
+
+            val testResponse = waitFor<String> { done -> testApi.deleteBillAsync("123 456 789", done) }
+
+            assertEquals("OK", testResponse.res)
+            assertEquals("http", testCaptured.get().scheme())
+            assertEquals("127.0.0.1", testCaptured.get().host())
+            assertEquals(9999, testCaptured.get().port())
+
+            val prodCaptured = AtomicReference<HttpUrl>()
+            val prodApi = WeBirrClient(
+                "merchant-from-client",
+                "api-key",
+                false,
+                captureOnlyClient(prodCaptured)
+            )
+
+            val prodResponse = waitFor<String> { done -> prodApi.deleteBillAsync("123 456 789", done) }
+
+            assertEquals("OK", prodResponse.res)
+            assertEquals("https", prodCaptured.get().scheme())
+            assertEquals("api.webirr.net", prodCaptured.get().host())
+            assertEquals(8080, prodCaptured.get().port())
+        } finally {
+            System.clearProperty("GATEWAY_URL")
+        }
     }
 
     @Test
@@ -306,6 +368,26 @@ class WeBirrClientTests {
             "api-key",
             WeBirrApiAdapter.createWeBirrApi(server.url("/").toString())
         )
+
+    private fun captureOnlyClient(captured: AtomicReference<HttpUrl>): OkHttpClient =
+        OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val request = chain.request()
+                captured.set(request.url())
+                Response.Builder()
+                    .request(request)
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK")
+                    .body(
+                        ResponseBody.create(
+                            MediaType.parse("application/json"),
+                            """{"error":null,"errorCode":null,"res":"OK"}"""
+                        )
+                    )
+                    .build()
+            }
+            .build()
 
     private fun <T> waitFor(operation: ((ApiResponse<T>) -> Unit) -> Unit): ApiResponse<T> {
         val latch = CountDownLatch(1)

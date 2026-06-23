@@ -93,9 +93,11 @@ internal interface WeBirrApi {
 }
 
 internal object WeBirrApiAdapter {
+    private const val TEST_BASE_URL = "https://api.webirr.dev/"
+    private const val PROD_BASE_URL = "https://api.webirr.net:8080/"
+
     fun createWeBirrApi(isTestEnv: Boolean, okHttpClient: OkHttpClient = OkHttpClient()): WeBirrApi {
-        val baseUrl = if (isTestEnv) "https://api.webirr.net/" else "https://api.webirr.net:8080/"
-        return createWeBirrApi(baseUrl, okHttpClient)
+        return createWeBirrApi(resolveBaseUrl(isTestEnv), okHttpClient)
     }
 
     fun createWeBirrApi(baseUrl: String, okHttpClient: OkHttpClient = OkHttpClient()): WeBirrApi =
@@ -105,4 +107,19 @@ internal object WeBirrApiAdapter {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(WeBirrApi::class.java)
+
+    private fun resolveBaseUrl(isTestEnv: Boolean): String {
+        if (!isTestEnv) {
+            return PROD_BASE_URL
+        }
+
+        val gatewayUrl = System.getProperty("GATEWAY_URL")
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?: System.getenv("GATEWAY_URL")
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+
+        return gatewayUrl?.trimEnd('/')?.plus("/") ?: TEST_BASE_URL
+    }
 }
