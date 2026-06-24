@@ -16,8 +16,6 @@ class WeBirrClient {
     private val merchantId: String
     private val api: WeBirrApi
 
-    constructor(apiKey: String, isTestEnv: Boolean) : this("", apiKey, isTestEnv)
-
     constructor(
         merchantId: String,
         apiKey: String,

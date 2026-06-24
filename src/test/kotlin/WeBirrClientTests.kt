@@ -51,9 +51,9 @@ class WeBirrClientTests {
     }
 
     @Test
-    fun legacyConstructorDoesNotOverwriteExistingBillMerchantId() {
+    fun emptyMerchantIdDoesNotOverwriteExistingBillMerchantId() {
         server.enqueue(apiErrorResponse())
-        val api = legacyTestClient()
+        val api = emptyMerchantTestClient()
         val bill = sampleBill().also { it.merchantID = "merchant-on-bill" }
 
         waitFor<String> { done -> api.createBillAsync(bill, done) }
@@ -168,7 +168,7 @@ class WeBirrClientTests {
     fun endpointRequestsOmitMerchantIdWhenClientMerchantIdIsEmpty() {
         for (endpoint in endpointCalls()) {
             server.enqueue(apiErrorResponse())
-            val api = legacyTestClient()
+            val api = emptyMerchantTestClient()
 
             endpoint.invoke(api)
 
@@ -362,7 +362,7 @@ class WeBirrClientTests {
             WeBirrApiAdapter.createWeBirrApi(server.url("/").toString())
         )
 
-    private fun legacyTestClient(): WeBirrClient =
+    private fun emptyMerchantTestClient(): WeBirrClient =
         WeBirrClient(
             "",
             "api-key",

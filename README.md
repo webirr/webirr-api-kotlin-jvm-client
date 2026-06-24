@@ -76,13 +76,7 @@ val okHttpClient = OkHttpClient.Builder().build()
 val api = WeBirrClient(merchantId, apiKey, true, okHttpClient)
 ```
 
-The older constructor style remains available for 1.x compatibility:
-
-```kotlin
-val api = WeBirrClient(apiKey, true)
-```
-
-When merchant ID is not configured, the client does not send an empty `merchant_id` query parameter and does not overwrite `Bill.merchantID`.
+In 2.x, the client constructor requires the merchant ID argument. When merchant ID is explicitly empty, the client does not send an empty `merchant_id` query parameter and does not overwrite `Bill.merchantID`.
 
 ## Example
 
