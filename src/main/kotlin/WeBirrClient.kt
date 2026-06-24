@@ -41,7 +41,7 @@ class WeBirrClient {
      * ApiResponse.res will have the value of the returned PaymentCode on success.
      */
     fun createBillAsync(bill: Bill, callBack: (ApiResponse<String>) -> Unit) {
-        val call = api.createBill(apiKey, queryMerchantId(), prepareBill(bill))
+        val call = api.createBill(apiKey, merchantId, prepareBill(bill))
         call.enqueue(ApiResponseCallBack(callBack))
     }
 
@@ -54,7 +54,7 @@ class WeBirrClient {
      * ApiResponse.res will have the value of "OK" on success.
      */
     fun updateBillAsync(bill: Bill, callBack: (ApiResponse<String>) -> Unit) {
-        val call = api.updateBill(apiKey, queryMerchantId(), prepareBill(bill))
+        val call = api.updateBill(apiKey, merchantId, prepareBill(bill))
         call.enqueue(ApiResponseCallBack(callBack))
     }
 
@@ -63,7 +63,7 @@ class WeBirrClient {
      * @param {string} paymentCode is the number that WeBirr Payment Gateway returns on createBillAsync.
      */
     fun deleteBillAsync(paymentCode: String, callBack: (ApiResponse<String>) -> Unit) {
-        val call = api.deleteBill(apiKey, queryMerchantId(), paymentCode)
+        val call = api.deleteBill(apiKey, merchantId, paymentCode)
         call.enqueue(ApiResponseCallBack(callBack))
     }
 
@@ -71,17 +71,17 @@ class WeBirrClient {
      * Get Payment Status of a bill from WeBirr Servers.
      */
     fun getPaymentStatusAsync(paymentCode: String, callBack: (ApiResponse<Payment>) -> Unit) {
-        val call = api.getPaymentStatus(apiKey, queryMerchantId(), paymentCode)
+        val call = api.getPaymentStatus(apiKey, merchantId, paymentCode)
         call.enqueue(ApiResponseCallBack(callBack))
     }
 
     fun getBillByReferenceAsync(billReference: String, callBack: (ApiResponse<BillResponse>) -> Unit) {
-        val call = api.getBillByReference(apiKey, queryMerchantId(), billReference)
+        val call = api.getBillByReference(apiKey, merchantId, billReference)
         call.enqueue(ApiResponseCallBack(callBack))
     }
 
     fun getBillByPaymentCodeAsync(paymentCode: String, callBack: (ApiResponse<BillResponse>) -> Unit) {
-        val call = api.getBillByPaymentCode(apiKey, queryMerchantId(), paymentCode)
+        val call = api.getBillByPaymentCode(apiKey, merchantId, paymentCode)
         call.enqueue(ApiResponseCallBack(callBack))
     }
 
@@ -91,7 +91,7 @@ class WeBirrClient {
         limit: Int = 100,
         callBack: (ApiResponse<List<BillResponse>>) -> Unit
     ) {
-        val call = api.getBills(apiKey, queryMerchantId(), paymentStatus, lastTimeStamp, limit)
+        val call = api.getBills(apiKey, merchantId, paymentStatus, lastTimeStamp, limit)
         call.enqueue(ApiResponseCallBack(callBack))
     }
 
@@ -100,29 +100,24 @@ class WeBirrClient {
         limit: Int = 100,
         callBack: (ApiResponse<List<PaymentResponse>>) -> Unit
     ) {
-        val call = api.getPayments(apiKey, queryMerchantId(), lastTimeStamp, limit)
+        val call = api.getPayments(apiKey, merchantId, lastTimeStamp, limit)
         call.enqueue(ApiResponseCallBack(callBack))
     }
 
     fun getStatAsync(dateFrom: String, dateTo: String, callBack: (ApiResponse<Stat>) -> Unit) {
-        val call = api.getStat(apiKey, queryMerchantId(), dateFrom, dateTo)
+        val call = api.getStat(apiKey, merchantId, dateFrom, dateTo)
         call.enqueue(ApiResponseCallBack(callBack))
     }
 
     fun getSupportedBanksAsync(callBack: (ApiResponse<List<SupportedBank>>) -> Unit) {
-        val call = api.getSupportedBanks(apiKey, queryMerchantId())
+        val call = api.getSupportedBanks(apiKey, merchantId)
         call.enqueue(ApiResponseCallBack(callBack))
     }
 
     private fun prepareBill(bill: Bill): Bill {
-        if (merchantId.isNotEmpty()) {
-            bill.merchantID = merchantId
-        }
+        bill.merchantID = merchantId
         return bill
     }
-
-    private fun queryMerchantId(): String? =
-        if (merchantId.isEmpty()) null else merchantId
 }
 
 class ApiResponseCallBack<T>(private val callBack: (ApiResponse<T>) -> Unit) : Callback<ApiResponse<T>> {

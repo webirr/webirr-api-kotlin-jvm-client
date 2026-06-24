@@ -51,7 +51,7 @@ class WeBirrClientTests {
     }
 
     @Test
-    fun emptyMerchantIdDoesNotOverwriteExistingBillMerchantId() {
+    fun emptyMerchantIdOverwritesExistingBillMerchantId() {
         server.enqueue(apiErrorResponse())
         val api = emptyMerchantTestClient()
         val bill = sampleBill().also { it.merchantID = "merchant-on-bill" }
@@ -59,7 +59,7 @@ class WeBirrClientTests {
         waitFor<String> { done -> api.createBillAsync(bill, done) }
 
         val body = requestBody(server.takeRequest())
-        assertEquals("merchant-on-bill", body["merchantID"])
+        assertEquals("", body["merchantID"])
     }
 
     @Test
@@ -165,14 +165,16 @@ class WeBirrClientTests {
     }
 
     @Test
-    fun endpointRequestsOmitMerchantIdWhenClientMerchantIdIsEmpty() {
+    fun endpointRequestsIncludeEmptyMerchantIdWhenClientMerchantIdIsEmpty() {
         for (endpoint in endpointCalls()) {
             server.enqueue(apiErrorResponse())
             val api = emptyMerchantTestClient()
 
             endpoint.invoke(api)
 
-            assertNull(server.takeRequest().requestUrl!!.queryParameter("merchant_id"), endpoint.name)
+            val requestUrl = server.takeRequest().requestUrl!!
+            assertEquals("", requestUrl.queryParameter("merchant_id"), endpoint.name)
+            assertTrue(requestUrl.queryParameterNames().contains("merchant_id"), endpoint.name)
         }
     }
 
