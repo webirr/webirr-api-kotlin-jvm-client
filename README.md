@@ -444,28 +444,6 @@ The `src/main/kotlin/example/example.kt` file includes workflows equivalent to t
 | `getBillAndListBills` | Get bill by reference, get bill by payment code, list bills. |
 | `getSupportedBanks` | Get banks enabled for the configured merchant checkout. |
 
-## Error handling & retries
-
-Suspend APIs return `ApiResponse<T>` when the gateway returns a successful HTTP response. WeBirr business errors come back in `ApiResponse.error` / `ApiResponse.errorCode`; network/DNS/TLS failures, `SocketTimeoutException`, non-2xx HTTP, and empty or non-JSON 2xx bodies are thrown platform errors, not `ApiResponse`.
-
-```kotlin
-try {
-    val createResponse = api.createBill(bill)
-    if (createResponse.error != null) {
-        // WeBirr business error: createResponse.error / createResponse.errorCode.
-        return
-    }
-
-    println("Payment Code = ${createResponse.res}")
-} catch (error: Throwable) {
-    if (WebirrErrors.isTransient(error)) {
-        // Retry only transient failures such as transport errors, timeouts, 5xx, 429, or 408.
-    }
-}
-```
-
-Use `WebirrErrors.isTransient(error)` before retrying platform failures with exponential backoff + jitter. Never retry other 4xx responses. Create and read operations are safe to retry. `DeleteBill` is also safe to retry, but a retry after it already succeeded returns an "invalid payment code" error; treat that as already-deleted.
-
 ## Tests
 
 Fast tests use a mock web server:
@@ -482,3 +460,31 @@ export WEBIRR_TEST_ENV_MERCHANT_ID="YOUR_MERCHANT_ID"
 export WEBIRR_TEST_ENV_API_KEY="YOUR_API_KEY"
 bash ./gradlew test
 ```
+
+## Error handling & retries
+
+Suspend APIs return `ApiResponse<T>` when the gateway returns a successful HTTP response. WeBirr business errors come back in `ApiResponse.error` / `ApiResponse.errorCode`; network/DNS/TLS failures, `SocketTimeoutException`, non-2xx HTTP, and empty or non-JSON 2xx bodies are thrown platform errors, not `ApiResponse`.
+
+```kotlin
+try {
+    val createResponse = api.createBill(bill)
+    if (createResponse.error != null) {
+        // WeBirr business error: createResponse.error / createResponse.errorCode.
+        return
+    }
+
+    println("Payment Code = ${createResponse.res}")
+} catch (error: Throwable) {
+    if (TransientErrors.isTransient(error)) {
+        // Transient platform error: transport/network failure,
+        // timeout, HTTP 5xx, 429, or 408.
+        // Safe to retry with backoff + jitter.
+    } else {
+        // Non-transient platform error: HTTP 4xx other than 408/429,
+        // invalid/empty response body, JSON parsing error, or caller cancellation.
+        // Do not retry automatically.
+    }
+}
+```
+
+Use `TransientErrors.isTransient(error)` before retrying platform failures with exponential backoff + jitter. Never retry other 4xx responses. Create and read operations are safe to retry. `DeleteBill` is also safe to retry, but a retry after it already succeeded returns an "invalid payment code" error; treat that as already-deleted.

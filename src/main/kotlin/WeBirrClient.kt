@@ -154,7 +154,7 @@ class WebirrPlatformException(
         statusCode == null || statusCode >= 500 || statusCode == 429 || statusCode == 408
 }
 
-object WebirrErrors {
+object TransientErrors {
     fun isTransient(error: Throwable): Boolean {
         if (error is WebirrPlatformException) {
             return error.isTransient()

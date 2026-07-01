@@ -279,7 +279,7 @@ class WeBirrClientTests {
         assertEquals(503, error.statusCode)
         assertEquals("Service Unavailable", error.status)
         assertTrue(error.isTransient())
-        assertTrue(WebirrErrors.isTransient(error))
+        assertTrue(TransientErrors.isTransient(error))
     }
 
     @Test
@@ -302,7 +302,7 @@ class WeBirrClientTests {
             runSuspend { api.deleteBill("123 456 789") }
         }
         assertNotNull(error)
-        assertTrue(WebirrErrors.isTransient(error))
+        assertTrue(TransientErrors.isTransient(error))
     }
 
     @Test
