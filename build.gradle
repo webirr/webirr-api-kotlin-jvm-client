@@ -5,7 +5,7 @@ plugins {
 }
 
 group 'com.webirr'
-version '2.0.2'
+version '2.1.0'
 
 publishing {
     publications {
@@ -26,6 +26,7 @@ repositories {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib"
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2'
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
 

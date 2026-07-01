@@ -22,6 +22,9 @@ import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.startCoroutine
 
 class WeBirrClientTests {
     private val exampleCursor = "20251231"
@@ -44,7 +47,7 @@ class WeBirrClientTests {
         val api = testClient()
         val bill = sampleBill().also { it.merchantID = "merchant-on-bill" }
 
-        waitFor<String> { done -> api.createBillAsync(bill, done) }
+        runSuspend { api.createBill(bill) }
 
         val body = requestBody(server.takeRequest())
         assertEquals("merchant-from-client", body["merchantID"])
@@ -56,7 +59,7 @@ class WeBirrClientTests {
         val api = emptyMerchantTestClient()
         val bill = sampleBill().also { it.merchantID = "merchant-on-bill" }
 
-        waitFor<String> { done -> api.createBillAsync(bill, done) }
+        runSuspend { api.createBill(bill) }
 
         val body = requestBody(server.takeRequest())
         assertEquals("", body["merchantID"])
@@ -80,7 +83,7 @@ class WeBirrClientTests {
             WeBirrApiAdapter.createWeBirrApi(server.url("/").toString(), okHttpClient)
         )
 
-        val response = waitFor<String> { done -> api.deleteBillAsync("123 456 789", done) }
+        val response = runSuspend { api.deleteBill("123 456 789") }
 
         val request = server.takeRequest()
         assertEquals("OK", response.res)
@@ -99,7 +102,7 @@ class WeBirrClientTests {
             captureOnlyClient(captured)
         )
 
-        val response = waitFor<String> { done -> api.deleteBillAsync("123 456 789", done) }
+        val response = runSuspend { api.deleteBill("123 456 789") }
 
         assertEquals("OK", response.res)
         assertEquals("https", captured.get().scheme())
@@ -119,7 +122,7 @@ class WeBirrClientTests {
                 captureOnlyClient(testCaptured)
             )
 
-            val testResponse = waitFor<String> { done -> testApi.deleteBillAsync("123 456 789", done) }
+            val testResponse = runSuspend { testApi.deleteBill("123 456 789") }
 
             assertEquals("OK", testResponse.res)
             assertEquals("http", testCaptured.get().scheme())
@@ -134,7 +137,7 @@ class WeBirrClientTests {
                 captureOnlyClient(prodCaptured)
             )
 
-            val prodResponse = waitFor<String> { done -> prodApi.deleteBillAsync("123 456 789", done) }
+            val prodResponse = runSuspend { prodApi.deleteBill("123 456 789") }
 
             assertEquals("OK", prodResponse.res)
             assertEquals("https", prodCaptured.get().scheme())
@@ -264,6 +267,45 @@ class WeBirrClientTests {
     }
 
     @Test
+    fun non2xxHttpThrowsPlatformExceptionWithStatus() {
+        server.enqueue(MockResponse().setResponseCode(503).setStatus("HTTP/1.1 503 Service Unavailable"))
+        val api = testClient()
+
+        val error = assertThrows(Throwable::class.java) {
+            runSuspend { api.deleteBill("123 456 789") }
+        }
+        assertTrue(error is WebirrPlatformException)
+        error as WebirrPlatformException
+        assertEquals(503, error.statusCode)
+        assertEquals("Service Unavailable", error.status)
+        assertTrue(error.isTransient())
+        assertTrue(WebirrErrors.isTransient(error))
+    }
+
+    @Test
+    fun empty2xxBodyThrowsPlatformError() {
+        server.enqueue(MockResponse().setResponseCode(200))
+        val api = testClient()
+
+        val error = assertThrows(Throwable::class.java) {
+            runSuspend { api.deleteBill("123 456 789") }
+        }
+        assertNotNull(error)
+    }
+
+    @Test
+    fun transportFailureThrows() {
+        val api = testClient()
+        server.shutdown()
+
+        val error = assertThrows(Throwable::class.java) {
+            runSuspend { api.deleteBill("123 456 789") }
+        }
+        assertNotNull(error)
+        assertTrue(WebirrErrors.isTransient(error))
+    }
+
+    @Test
     fun liveTestEnvSmokeAllEndpoints() {
         val merchantId = System.getenv("WEBIRR_TEST_ENV_MERCHANT_ID") ?: ""
         val apiKey = System.getenv("WEBIRR_TEST_ENV_API_KEY") ?: ""
@@ -278,62 +320,48 @@ class WeBirrClientTests {
         var billDeleted = false
 
         try {
-            val createResponse = waitFor<String> { done ->
-                api.createBillAsync(liveSampleBill(billReference), done)
-            }
+            val createResponse = runSuspend { api.createBill(liveSampleBill(billReference)) }
             assertNoApiError(createResponse, "createBill")
             paymentCode = createResponse.res ?: ""
             assertTrue(paymentCode.isNotEmpty())
             assertTrue(paymentCode.replace(" ", "").all { it.isDigit() })
 
             val updatedBill = liveSampleBill(billReference).also { it.amount = "278.00" }
-            val updateResponse = waitFor<String> { done -> api.updateBillAsync(updatedBill, done) }
+            val updateResponse = runSuspend { api.updateBill(updatedBill) }
             assertNoApiError(updateResponse, "updateBill")
             assertEquals("ok", updateResponse.res?.lowercase())
 
-            val statusResponse = waitFor<Payment> { done -> api.getPaymentStatusAsync(paymentCode, done) }
+            val statusResponse = runSuspend { api.getPaymentStatus(paymentCode) }
             assertNoApiError(statusResponse, "getPaymentStatus")
             assertEquals(0, statusResponse.res?.status)
             assertNull(statusResponse.res?.data)
 
-            val byReference = waitFor<BillResponse> { done ->
-                api.getBillByReferenceAsync(billReference, done)
-            }
+            val byReference = runSuspend { api.getBillByReference(billReference) }
             assertNoApiError(byReference, "getBillByReference")
             assertCreatedBill(byReference.res, billReference, merchantId, paymentCode)
             assertEquals(278.0, byReference.res?.amount?.toDoubleOrNull() ?: 0.0, 0.01)
             val listCursor = cursorBefore(byReference.res?.updateTimeStamp ?: "", exampleCursor)
 
-            val byPaymentCode = waitFor<BillResponse> { done ->
-                api.getBillByPaymentCodeAsync(paymentCode, done)
-            }
+            val byPaymentCode = runSuspend { api.getBillByPaymentCode(paymentCode) }
             assertNoApiError(byPaymentCode, "getBillByPaymentCode")
             assertCreatedBill(byPaymentCode.res, billReference, merchantId, paymentCode)
 
-            val bills = waitFor<List<BillResponse>> { done ->
-                api.getBillsAsync(paymentStatus = 0, lastTimeStamp = listCursor, limit = 100, callBack = done)
-            }
+            val bills = runSuspend { api.getBills(paymentStatus = 0, lastTimeStamp = listCursor, limit = 100) }
             assertNoApiError(bills, "getBills")
             val foundBill = bills.res?.firstOrNull {
                 it.billReference.equals(billReference, ignoreCase = true)
             }
             assertCreatedBill(foundBill, billReference, merchantId, paymentCode)
 
-            val payments = waitFor<List<PaymentResponse>> { done ->
-                api.getPaymentsAsync(lastTimeStamp = exampleCursor, limit = 10, callBack = done)
-            }
+            val payments = runSuspend { api.getPayments(lastTimeStamp = exampleCursor, limit = 10) }
             assertNoApiError(payments, "getPayments")
             assertNotNull(payments.res)
 
-            val stat = waitFor<Stat> { done ->
-                api.getStatAsync("2025-01-01", "2030-01-31", done)
-            }
+            val stat = runSuspend { api.getStat("2025-01-01", "2030-01-31") }
             assertNoApiError(stat, "getStat")
             assertNotNull(stat.res)
 
-            val supportedBanks = waitFor<List<SupportedBank>> { done ->
-                api.getSupportedBanksAsync(done)
-            }
+            val supportedBanks = runSuspend { api.getSupportedBanks() }
             assertNoApiError(supportedBanks, "getSupportedBanks")
             assertFalse(supportedBanks.res.isNullOrEmpty())
             supportedBanks.res?.forEach {
@@ -341,18 +369,16 @@ class WeBirrClientTests {
                 assertFalse(it.name.isEmpty())
             }
 
-            val deleteResponse = waitFor<String> { done -> api.deleteBillAsync(paymentCode, done) }
+            val deleteResponse = runSuspend { api.deleteBill(paymentCode) }
             assertNoApiError(deleteResponse, "deleteBill")
             assertEquals("ok", deleteResponse.res?.lowercase())
             billDeleted = true
 
-            val deletedLookup = waitFor<BillResponse> { done ->
-                api.getBillByReferenceAsync(billReference, done)
-            }
+            val deletedLookup = runSuspend { api.getBillByReference(billReference) }
             assertNotNull(deletedLookup.error)
         } finally {
             if (paymentCode.isNotEmpty() && !billDeleted) {
-                waitFor<String> { done -> api.deleteBillAsync(paymentCode, done) }
+                runSuspend { api.deleteBill(paymentCode) }
             }
         }
     }
@@ -391,26 +417,42 @@ class WeBirrClientTests {
             }
             .build()
 
-    private fun <T> waitFor(operation: ((ApiResponse<T>) -> Unit) -> Unit): ApiResponse<T> {
+    private fun <T> runSuspend(operation: suspend () -> T): T {
         val latch = CountDownLatch(1)
-        val result = AtomicReference<ApiResponse<T>>()
+        val outcome = AtomicReference<Result<T>>()
 
-        operation {
-            result.set(it)
-            latch.countDown()
+        operation.startCoroutine(object : Continuation<T> {
+            override val context = EmptyCoroutineContext
+
+            override fun resumeWith(result: Result<T>) {
+                outcome.set(result)
+                latch.countDown()
+            }
+        })
+
+        if (!latch.await(15, TimeUnit.SECONDS)) {
+            throw WebirrPlatformException("test timeout")
         }
+        return outcome.get().getOrThrow()
+    }
 
-        latch.await(15, TimeUnit.SECONDS)
-        return result.get() ?: ApiResponse("test timeout")
+    private fun assertThrows(type: Class<out Throwable>, operation: () -> Unit): Throwable {
+        try {
+            operation()
+        } catch (throwable: Throwable) {
+            assertTrue(type.isInstance(throwable))
+            return throwable
+        }
+        throw AssertionError("expected ${type.simpleName}")
     }
 
     private fun endpointCalls(): List<EndpointCall> =
         listOf(
             EndpointCall("createBill", "POST", "/einvoice/api/bill") { api ->
-                waitFor<String> { done -> api.createBillAsync(sampleBill(), done) }
+                runSuspend { api.createBill(sampleBill()) }
             },
             EndpointCall("updateBill", "PUT", "/einvoice/api/bill") { api ->
-                waitFor<String> { done -> api.updateBillAsync(sampleBill(), done) }
+                runSuspend { api.updateBill(sampleBill()) }
             },
             EndpointCall(
                 "deleteBill",
@@ -418,7 +460,7 @@ class WeBirrClientTests {
                 "/einvoice/api/bill",
                 mapOf("wbc_code" to "123 456 789")
             ) { api ->
-                waitFor<String> { done -> api.deleteBillAsync("123 456 789", done) }
+                runSuspend { api.deleteBill("123 456 789") }
             },
             EndpointCall(
                 "getPaymentStatus",
@@ -426,7 +468,7 @@ class WeBirrClientTests {
                 "/einvoice/api/paymentStatus",
                 mapOf("wbc_code" to "123 456 789")
             ) { api ->
-                waitFor<Payment> { done -> api.getPaymentStatusAsync("123 456 789", done) }
+                runSuspend { api.getPaymentStatus("123 456 789") }
             },
             EndpointCall(
                 "getBillByReference",
@@ -434,7 +476,7 @@ class WeBirrClientTests {
                 "/einvoice/api/bill",
                 mapOf("bill_reference" to "kt/unit/1")
             ) { api ->
-                waitFor<BillResponse> { done -> api.getBillByReferenceAsync("kt/unit/1", done) }
+                runSuspend { api.getBillByReference("kt/unit/1") }
             },
             EndpointCall(
                 "getBillByPaymentCode",
@@ -442,7 +484,7 @@ class WeBirrClientTests {
                 "/einvoice/api/bill",
                 mapOf("wbc_code" to "123 456 789")
             ) { api ->
-                waitFor<BillResponse> { done -> api.getBillByPaymentCodeAsync("123 456 789", done) }
+                runSuspend { api.getBillByPaymentCode("123 456 789") }
             },
             EndpointCall(
                 "getBills",
@@ -450,9 +492,7 @@ class WeBirrClientTests {
                 "/einvoice/api/bills",
                 mapOf("payment_status" to "-1", "last_timestamp" to exampleCursor, "limit" to "10")
             ) { api ->
-                waitFor<List<BillResponse>> { done ->
-                    api.getBillsAsync(paymentStatus = -1, lastTimeStamp = exampleCursor, limit = 10, callBack = done)
-                }
+                runSuspend { api.getBills(paymentStatus = -1, lastTimeStamp = exampleCursor, limit = 10) }
             },
             EndpointCall(
                 "getPayments",
@@ -460,9 +500,7 @@ class WeBirrClientTests {
                 "/einvoice/api/payments",
                 mapOf("last_timestamp" to exampleCursor, "limit" to "10")
             ) { api ->
-                waitFor<List<PaymentResponse>> { done ->
-                    api.getPaymentsAsync(lastTimeStamp = exampleCursor, limit = 10, callBack = done)
-                }
+                runSuspend { api.getPayments(lastTimeStamp = exampleCursor, limit = 10) }
             },
             EndpointCall(
                 "getStat",
@@ -470,10 +508,10 @@ class WeBirrClientTests {
                 "/merchant/stat",
                 mapOf("date_from" to "2025-01-01", "date_to" to "2030-01-31")
             ) { api ->
-                waitFor<Stat> { done -> api.getStatAsync("2025-01-01", "2030-01-31", done) }
+                runSuspend { api.getStat("2025-01-01", "2030-01-31") }
             },
             EndpointCall("getSupportedBanks", "GET", "/einvoice/api/banks") { api ->
-                waitFor<List<SupportedBank>> { done -> api.getSupportedBanksAsync(done) }
+                runSuspend { api.getSupportedBanks() }
             }
         )
 

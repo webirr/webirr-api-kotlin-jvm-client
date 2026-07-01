@@ -1,9 +1,14 @@
 package webirr
 
+import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.OkHttpClient
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.io.IOException
+import java.net.SocketTimeoutException
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * A WeBirrClient instance object can be used to
@@ -36,100 +41,130 @@ class WeBirrClient {
     /**
      * Create a new bill at WeBirr Servers.
      * @param {Bill} bill represents an invoice or bill for a customer
-     * @returns {Unit} but uses callBack that will be called when the async task is done.
      * Check if(ApiResponse.error == null) to see if there are errors.
      * ApiResponse.res will have the value of the returned PaymentCode on success.
      */
-    fun createBillAsync(bill: Bill, callBack: (ApiResponse<String>) -> Unit) {
-        val call = api.createBill(apiKey, merchantId, prepareBill(bill))
-        call.enqueue(ApiResponseCallBack(callBack))
-    }
+    suspend fun createBill(bill: Bill): ApiResponse<String> =
+        await(api.createBill(apiKey, merchantId, prepareBill(bill)))
 
     /**
      * Update an existing bill at WeBirr Servers, if the bill is not paid yet.
      * The billReference has to be the same as the original bill created.
      * @param {Bill} bill represents an invoice or bill for a customer
-     * @returns {Unit} but uses callBack that will be called when the async task is done.
      * Check if(ApiResponse.error == null) to see if there are errors.
      * ApiResponse.res will have the value of "OK" on success.
      */
-    fun updateBillAsync(bill: Bill, callBack: (ApiResponse<String>) -> Unit) {
-        val call = api.updateBill(apiKey, merchantId, prepareBill(bill))
-        call.enqueue(ApiResponseCallBack(callBack))
-    }
+    suspend fun updateBill(bill: Bill): ApiResponse<String> =
+        await(api.updateBill(apiKey, merchantId, prepareBill(bill)))
 
     /**
      * Delete an existing bill at WeBirr Servers, if the bill is not paid yet.
-     * @param {string} paymentCode is the number that WeBirr Payment Gateway returns on createBillAsync.
+     * @param {string} paymentCode is the number that WeBirr Payment Gateway returns on createBill.
      */
-    fun deleteBillAsync(paymentCode: String, callBack: (ApiResponse<String>) -> Unit) {
-        val call = api.deleteBill(apiKey, merchantId, paymentCode)
-        call.enqueue(ApiResponseCallBack(callBack))
-    }
+    suspend fun deleteBill(paymentCode: String): ApiResponse<String> =
+        await(api.deleteBill(apiKey, merchantId, paymentCode))
 
-    /**
+     /**
      * Get Payment Status of a bill from WeBirr Servers.
      */
-    fun getPaymentStatusAsync(paymentCode: String, callBack: (ApiResponse<Payment>) -> Unit) {
-        val call = api.getPaymentStatus(apiKey, merchantId, paymentCode)
-        call.enqueue(ApiResponseCallBack(callBack))
-    }
+    suspend fun getPaymentStatus(paymentCode: String): ApiResponse<Payment> =
+        await(api.getPaymentStatus(apiKey, merchantId, paymentCode))
 
-    fun getBillByReferenceAsync(billReference: String, callBack: (ApiResponse<BillResponse>) -> Unit) {
-        val call = api.getBillByReference(apiKey, merchantId, billReference)
-        call.enqueue(ApiResponseCallBack(callBack))
-    }
+    suspend fun getBillByReference(billReference: String): ApiResponse<BillResponse> =
+        await(api.getBillByReference(apiKey, merchantId, billReference))
 
-    fun getBillByPaymentCodeAsync(paymentCode: String, callBack: (ApiResponse<BillResponse>) -> Unit) {
-        val call = api.getBillByPaymentCode(apiKey, merchantId, paymentCode)
-        call.enqueue(ApiResponseCallBack(callBack))
-    }
+    suspend fun getBillByPaymentCode(paymentCode: String): ApiResponse<BillResponse> =
+        await(api.getBillByPaymentCode(apiKey, merchantId, paymentCode))
 
-    fun getBillsAsync(
+    suspend fun getBills(
         paymentStatus: Int = -1,
         lastTimeStamp: String = "",
-        limit: Int = 100,
-        callBack: (ApiResponse<List<BillResponse>>) -> Unit
-    ) {
-        val call = api.getBills(apiKey, merchantId, paymentStatus, lastTimeStamp, limit)
-        call.enqueue(ApiResponseCallBack(callBack))
-    }
+        limit: Int = 100
+    ): ApiResponse<List<BillResponse>> =
+        await(api.getBills(apiKey, merchantId, paymentStatus, lastTimeStamp, limit))
 
-    fun getPaymentsAsync(
+    suspend fun getPayments(
         lastTimeStamp: String = "",
-        limit: Int = 100,
-        callBack: (ApiResponse<List<PaymentResponse>>) -> Unit
-    ) {
-        val call = api.getPayments(apiKey, merchantId, lastTimeStamp, limit)
-        call.enqueue(ApiResponseCallBack(callBack))
-    }
+        limit: Int = 100
+    ): ApiResponse<List<PaymentResponse>> =
+        await(api.getPayments(apiKey, merchantId, lastTimeStamp, limit))
 
-    fun getStatAsync(dateFrom: String, dateTo: String, callBack: (ApiResponse<Stat>) -> Unit) {
-        val call = api.getStat(apiKey, merchantId, dateFrom, dateTo)
-        call.enqueue(ApiResponseCallBack(callBack))
-    }
+    suspend fun getStat(dateFrom: String, dateTo: String): ApiResponse<Stat> =
+        await(api.getStat(apiKey, merchantId, dateFrom, dateTo))
 
-    fun getSupportedBanksAsync(callBack: (ApiResponse<List<SupportedBank>>) -> Unit) {
-        val call = api.getSupportedBanks(apiKey, merchantId)
-        call.enqueue(ApiResponseCallBack(callBack))
-    }
+    suspend fun getSupportedBanks(): ApiResponse<List<SupportedBank>> =
+        await(api.getSupportedBanks(apiKey, merchantId))
 
     private fun prepareBill(bill: Bill): Bill {
         bill.merchantID = merchantId
         return bill
     }
+
+    private suspend fun <T> await(call: Call<ApiResponse<T>>): ApiResponse<T> =
+        suspendCancellableCoroutine { continuation ->
+            continuation.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback<ApiResponse<T>> {
+                override fun onResponse(call: Call<ApiResponse<T>>, response: Response<ApiResponse<T>>) {
+                    if (!continuation.isActive) {
+                        return
+                    }
+                    if (!response.isSuccessful) {
+                        continuation.resumeWithException(
+                            WebirrPlatformException(
+                                "http error ${response.raw().code()} ${response.raw().message()}",
+                                response.raw().code(),
+                                response.raw().message()
+                            )
+                        )
+                        return
+                    }
+
+                    val body = response.body()
+                    if (body == null) {
+                        continuation.resumeWithException(
+                            WebirrPlatformException(
+                                "empty response",
+                                response.raw().code(),
+                                response.raw().message()
+                            )
+                        )
+                        return
+                    }
+
+                    continuation.resume(body)
+                }
+
+                override fun onFailure(call: Call<ApiResponse<T>>, t: Throwable) {
+                    if (!continuation.isActive) {
+                        return
+                    }
+                    continuation.resumeWithException(t)
+                }
+            })
+        }
 }
 
-class ApiResponseCallBack<T>(private val callBack: (ApiResponse<T>) -> Unit) : Callback<ApiResponse<T>> {
-    override fun onResponse(call: Call<ApiResponse<T>>, response: Response<ApiResponse<T>>) {
-        if (response.isSuccessful) {
-            callBack(response.body() ?: ApiResponse("empty response"))
-        } else {
-            callBack(ApiResponse("http error ${response.raw().code()} ${response.raw().message()}"))
-        }
-    }
+class WebirrPlatformException(
+    message: String,
+    val statusCode: Int? = null,
+    val status: String? = null,
+    cause: Throwable? = null
+) : IOException(message, cause) {
+    fun isTransient(): Boolean =
+        statusCode == null || statusCode >= 500 || statusCode == 429 || statusCode == 408
+}
 
-    override fun onFailure(call: Call<ApiResponse<T>>, t: Throwable) {
-        callBack(ApiResponse("exception ${t.message}"))
+object WebirrErrors {
+    fun isTransient(error: Throwable): Boolean {
+        if (error is WebirrPlatformException) {
+            return error.isTransient()
+        }
+        if (error is SocketTimeoutException) {
+            return true
+        }
+        if (error is IOException) {
+            return true
+        }
+        return false
     }
 }
