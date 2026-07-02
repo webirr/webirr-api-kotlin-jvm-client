@@ -86,7 +86,7 @@ class WeBirrClient {
     suspend fun getPayments(
         lastTimeStamp: String = "",
         limit: Int = 100
-    ): ApiResponse<List<PaymentResponse>> =
+    ): ApiResponse<List<PaymentRecord>> =
         await(api.getPayments(apiKey, merchantId, lastTimeStamp, limit))
 
     suspend fun getStat(dateFrom: String, dateTo: String): ApiResponse<Stat> =

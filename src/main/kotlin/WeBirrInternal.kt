@@ -75,7 +75,7 @@ internal interface WeBirrApi {
         @Query("merchant_id") merchantId: String?,
         @Query("last_timestamp") lastTimeStamp: String,
         @Query("limit") limit: Int
-    ): Call<ApiResponse<List<PaymentResponse>>>
+    ): Call<ApiResponse<List<PaymentRecord>>>
 
     @GET("merchant/stat")
     fun getStat(

@@ -35,21 +35,14 @@ class PaymentDetail {
     var updateTimeStamp: String = ""
 }
 
-class PaymentResponse {
+class PaymentRecord {
     var status: Int = 0
     var id: Int = 0
     var bankID: String = ""
     var paymentReference: String = ""
 
-    @SerializedName(value = "paymentDate", alternate = ["time"])
+    @SerializedName("paymentDate")
     var paymentDate: String = ""
-
-    @Deprecated("Prefer paymentDate.")
-    var time: String
-        get() = paymentDate
-        set(value) {
-            paymentDate = value
-        }
 
     var confirmed: Boolean = false
     var confirmedTime: String = ""
@@ -68,5 +61,5 @@ class PaymentResponse {
 
 class PaymentWebhookPayload {
     var status: Int = 0
-    var data: PaymentResponse = PaymentResponse()
+    var data: PaymentRecord = PaymentRecord()
 }

@@ -234,7 +234,7 @@ class WeBirrClientTests {
         assertTrue(payment.isPaid)
         assertEquals("2025-01-01 10:00:00", payment.data?.paymentDate)
 
-        val bulkPayment = gson.fromJson(gson.toJson(paymentResponseJson()), PaymentResponse::class.java)
+        val bulkPayment = gson.fromJson(gson.toJson(paymentResponseJson()), PaymentRecord::class.java)
         assertTrue(bulkPayment.isReversed)
         assertEquals("20250101100100000001", bulkPayment.updateTimeStamp)
 

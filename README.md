@@ -319,7 +319,7 @@ suspend fun deleteBill() {
 ```kotlin
 package webirr.example
 
-import webirr.PaymentResponse
+import webirr.PaymentRecord
 import webirr.WeBirrClient
 
 class BulkPaymentPollingConsumer(private val api: WeBirrClient) {
@@ -335,7 +335,7 @@ class BulkPaymentPollingConsumer(private val api: WeBirrClient) {
             // success
             for (payment in payments.res ?: emptyList()) {
                 processPayment(payment)
-                if (payment.updateTimeStamp.isNotEmpty()) {
+                if (payment.updateTimeStamp > lastTimeStamp) {
                     lastTimeStamp = payment.updateTimeStamp
                     println("Next cursor candidate: $lastTimeStamp")
                 }
@@ -349,7 +349,7 @@ class BulkPaymentPollingConsumer(private val api: WeBirrClient) {
     }
 }
 
-fun processPayment(payment: PaymentResponse) {
+fun processPayment(payment: PaymentRecord) {
     if (payment.isPaid) {
         println("bill is paid")
     } else if (payment.isReversed) {
@@ -371,7 +371,7 @@ fun processPayment(payment: PaymentResponse) {
 package webirr.example
 
 import com.google.gson.Gson
-import webirr.PaymentResponse
+import webirr.PaymentRecord
 import webirr.PaymentWebhookPayload
 
 fun processWebhookPayment(rawBody: String, authKey: String?): Pair<Int, String> {
@@ -395,7 +395,7 @@ fun processWebhookPayment(rawBody: String, authKey: String?): Pair<Int, String> 
 }
 ```
 
-Host webhook handlers on HTTPS, validate the HTTP method is POST before calling the processing code, validate the `authKey`, make payment processing idempotent, and enqueue longer work to a background process.
+Host webhook handlers on HTTPS, validate the HTTP method is POST before calling the processing code, validate the query-string `authKey`, make payment processing idempotent, and enqueue longer work to a background process.
 
 ### Gettting basic Statistics about bills created and payments received for a date range
 

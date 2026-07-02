@@ -2,7 +2,7 @@ package webirr.example
 
 import com.google.gson.Gson
 import webirr.Bill
-import webirr.PaymentResponse
+import webirr.PaymentRecord
 import webirr.PaymentWebhookPayload
 import webirr.WeBirrClient
 
@@ -186,7 +186,7 @@ class BulkPaymentPollingConsumer(private val api: WeBirrClient) {
             // success
             for (payment in payments.res ?: emptyList()) {
                 processPayment(payment)
-                if (payment.updateTimeStamp.isNotEmpty()) {
+                if (payment.updateTimeStamp > lastTimeStamp) {
                     lastTimeStamp = payment.updateTimeStamp
                     println("Next cursor candidate: $lastTimeStamp")
                 }
@@ -223,7 +223,7 @@ fun processWebhookPayment(rawBody: String, authKey: String?): Pair<Int, String> 
     }
 }
 
-fun processPayment(payment: PaymentResponse) {
+fun processPayment(payment: PaymentRecord) {
     if (payment.isPaid) {
         println("bill is paid")
     } else if (payment.isReversed) {
