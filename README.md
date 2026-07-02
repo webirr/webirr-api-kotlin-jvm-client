@@ -23,7 +23,7 @@ Step 2. Add the dependency
 
 ```groovy
 dependencies {
-    implementation 'com.github.webirr:webirr-api-kotlin-jvm-client:Tag'
+    implementation 'com.github.webirr:webirr-api-kotlin-jvm-client:latest.release'
 }
 ```
 
@@ -46,9 +46,15 @@ Step 2. Add the dependency
 <dependency>
     <groupId>com.github.webirr</groupId>
     <artifactId>webirr-api-kotlin-jvm-client</artifactId>
-    <version>Tag</version>
+    <version>latest.release</version>
 </dependency>
 ```
+
+Use the latest released Kotlin/JVM package unless your application needs to pin
+a specific version. WeBirr SDKs version independently by language, so the
+Kotlin/JVM package version may differ from PHP, Go, JavaScript, .NET, Python,
+Dart, Swift, or Ruby. For locked production builds, pin the latest GitHub
+Release tag after testing it in your application.
 
 ## Usage
 
