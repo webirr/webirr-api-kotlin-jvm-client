@@ -238,6 +238,15 @@ class WeBirrClientTests {
         assertTrue(bulkPayment.isReversed)
         assertEquals("20250101100100000001", bulkPayment.updateTimeStamp)
 
+        val webhookPayload = gson.fromJson(gson.toJson(paymentWebhookPayloadJson()), PaymentWebhookPayload::class.java)
+        assertEquals(2, webhookPayload.status)
+        assertEquals(webhookPayload.status, webhookPayload.data.status)
+        assertEquals("cbe_mobile", webhookPayload.data.bankID)
+        assertEquals("FTC356A577695", webhookPayload.data.paymentReference)
+        assertEquals("000 000 000", webhookPayload.data.wbcCode)
+        assertEquals("2026062512000000000", webhookPayload.data.updateTimeStamp)
+        assertEquals("2026-06-25 12:00:00", webhookPayload.data.paymentDate)
+
         val stat = gson.fromJson(
             """{"nBills":2,"nBillsPaid":1,"nBillsUnpaid":1,"amountBills":"548.00","amountPaid":"270.00","amountUnpaid":"278.00"}""",
             Stat::class.java
@@ -629,6 +638,26 @@ class WeBirrClientTests {
             "amount" to "270.90",
             "wbcCode" to "123 456 789",
             "updateTimeStamp" to "20250101100100000001"
+        )
+
+    private fun paymentWebhookPayloadJson(): Map<String, Any> =
+        mapOf(
+            "status" to 2,
+            "data" to mapOf(
+                "status" to 2,
+                "id" to 121356,
+                "bankID" to "cbe_mobile",
+                "paymentReference" to "FTC356A577695",
+                "paymentDate" to "2026-06-25 12:00:00",
+                "time" to "2026-06-25 12:00:00",
+                "confirmed" to true,
+                "confirmedTime" to "2026-06-25 12:00:00",
+                "canceled" to false,
+                "canceledTime" to "",
+                "amount" to "100.00",
+                "wbcCode" to "000 000 000",
+                "updateTimeStamp" to "2026062512000000000"
+            )
         )
 
     private fun successResponse(): MockResponse =

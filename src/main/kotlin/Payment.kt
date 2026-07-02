@@ -65,3 +65,8 @@ class PaymentResponse {
     val isReversed: Boolean
         get() = status == 3
 }
+
+class PaymentWebhookPayload {
+    var status: Int = 0
+    var data: PaymentResponse = PaymentResponse()
+}

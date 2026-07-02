@@ -337,9 +337,10 @@ class BulkPaymentPollingConsumer(private val api: WeBirrClient) {
                 processPayment(payment)
                 if (payment.updateTimeStamp.isNotEmpty()) {
                     lastTimeStamp = payment.updateTimeStamp
-                    println("Last Timestamp: $lastTimeStamp") // save updateTimeStamp to your database for the next getPayments() call
+                    println("Next cursor candidate: $lastTimeStamp")
                 }
             }
+            // Save lastTimeStamp to your database only after the batch is processed successfully.
         } else {
             // fail
             println("error: ${payments.error}")
@@ -371,6 +372,7 @@ package webirr.example
 
 import com.google.gson.Gson
 import webirr.PaymentResponse
+import webirr.PaymentWebhookPayload
 
 fun processWebhookPayment(rawBody: String, authKey: String?): Pair<Int, String> {
     val expectedAuthKey = System.getenv("WEBIRR_WEBHOOK_AUTH_KEY") ?: "YOUR_WEBHOOK_AUTH_KEY"
@@ -384,8 +386,8 @@ fun processWebhookPayment(rawBody: String, authKey: String?): Pair<Int, String> 
     }
 
     return try {
-        val payment = Gson().fromJson(rawBody, PaymentResponse::class.java)
-        processPayment(payment)
+        val payload = Gson().fromJson(rawBody, PaymentWebhookPayload::class.java)
+        processPayment(payload.data)
         200 to """{"error":null}"""
     } catch (_: Exception) {
         400 to """{"error":"invalid json"}"""
